@@ -1,0 +1,50 @@
+# CPAP EzShare
+
+ResMed AirSense 10/11 에 꽂은 **EzShare WiFi SD 카드**(`http://ezshare.card`)에 접속해
+`DATALOG` 폴더의 기록을 내려받아 분석하는 Flutter Android 앱.
+
+## 기능
+
+- **날짜 목록**: `A:\DATALOG\YYYYMMDD` 폴더 목록 (분석한 날은 AHI/사용시간 요약 표시)
+- **하룻밤 분석** (`PLD` / `EVE` / `SAD` / `CSL` 파일)
+  - AHI, 사용시간, 세션 수, 이벤트별 횟수와 시간당 지수 (OA / CA / H / UA / RERA)
+  - 압력·마스크압력·누출·호흡수·일회호흡량·분당환기량 중앙값/95%/최대
+  - 대량 누출(>24 L/min) 경고 및 누적 시간, SpO2/맥박(센서 연결 시)
+  - 이벤트 타임라인, 신호별 그래프, 이벤트 목록
+- **고해상도 호흡 파형** (`BRP`, 25Hz): 필요할 때만 다운로드, 30초/1분/5분 창, 이벤트 탭 시 해당 시점으로 이동
+- **전체 추세** (`STR.edf`): 7/30/90일/전체 AHI, 사용시간, 누출 95%, 압력 95%, 4시간 이상 사용률
+- 다운로드 파일 캐시 → EzShare 연결이 없어도 이전에 받은 기록 열람 가능
+- 인터넷 없는 EzShare WiFi 로 트래픽이 가도록 앱 프로세스를 WiFi 에 바인딩
+
+## 구조
+
+```
+lib/
+  edf/edf_parser.dart            EDF / EDF+ (TAL 어노테이션) 파서
+  analysis/airsense_analyzer.dart ResMed 파일 종류별 해석, STR.edf 요약
+  analysis/models.dart           NightReport, 통계, 다운샘플링
+  services/ezshare_client.dart   EzShare HTML 목록 파싱, 다운로드, 파일 캐시
+  services/cpap_repository.dart  설정, 목록/분석 흐름 (분석은 Isolate 에서 실행)
+  services/network_binder.dart   WiFi 바인딩 (MainActivity.kt MethodChannel)
+  ui/                            화면 (홈, 하룻밤, 추세, 설정), 차트
+tools/mock_ezshare.py            로컬 폴더를 EzShare 처럼 제공하는 테스트 서버
+```
+
+## 빌드 / 실행
+
+```sh
+flutter pub get
+flutter test
+flutter run            # 또는 flutter build apk --release
+```
+
+## 사용
+
+1. 휴대폰 WiFi 를 EzShare 네트워크(기본 비밀번호 `88888888`)에 연결 — "인터넷 없음" 경고가 나오면 연결 유지
+2. 앱 실행 → 날짜 선택
+3. SD 카드 구조가 다르면 설정에서 DATALOG 경로를 변경 (예: `Data\DATALOG`)
+
+카드 없이 테스트: `python tools/mock_ezshare.py` 를 실행하고 앱 설정의 주소를
+`http://10.0.2.2:8000`(에뮬레이터) 또는 PC IP 로 변경.
+
+> 분석 결과는 참고용이며 의료적 진단을 대신하지 않습니다.
